@@ -1,10 +1,10 @@
 import type { Hono } from "hono";
 import { getPrismaForD1 } from "../prisma-factory";
 import { getSession, createAuthjsConfig } from "../authjs-handler";
-import { handleUpload } from "../../modules/media/service";
+import { handleUpload, getS3Client } from "../../modules/media/service";
 import { getMediaByKey } from "../../modules/media/repository";
 import { getS3ConfigRecord } from "../../modules/media/repository";
-import { createS3ClientFromConfig } from "../../lib/s3/client";
+import { R2_MEDIA_CACHE_CONTROL } from "../../lib/r2/client";
 import { toErrorResponsePayload } from "../../lib/app-error";
 import { logger } from "../../lib/logger";
 
@@ -102,12 +102,9 @@ export function registerMediaRoutes(app: Hono) {
 
       // Get S3 config
       const s3Config = await getS3ConfigRecord(prisma);
-      if (!s3Config) {
-        return c.json({ message: "S3 配置缺失", code: "S3_CONFIG_MISSING" }, 500);
-      }
 
       // Fetch from S3 with retry for transient errors
-      const s3Client = createS3ClientFromConfig(s3Config);
+      const s3Client = await getS3Client(prisma);
       const MAX_RETRIES = 2;
       const RETRY_DELAY_MS = 500;
 
@@ -198,7 +195,7 @@ export function registerMediaRoutes(app: Hono) {
       const headers = new Headers();
       headers.set("Content-Type", media.mimeType);
       headers.set("Content-Length", String(body.byteLength));
-      headers.set("Cache-Control", s3Config.cacheControl);
+      headers.set("Cache-Control", s3Config?.cacheControl || R2_MEDIA_CACHE_CONTROL);
       headers.set("Content-Disposition", `inline; filename="${encodeURIComponent(media.originalName)}"`);
 
       const etag = s3Response.headers.get("ETag");

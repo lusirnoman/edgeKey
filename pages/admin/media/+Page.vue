@@ -6,10 +6,10 @@
         <div class="flex items-center justify-between gap-4 max-md:flex-col max-md:items-start">
           <div>
             <h1 class="text-2xl font-bold">文件管理</h1>
-            <p class="text-sm text-base-content/70">管理上传到 S3 存储的文件资源。</p>
+            <p class="text-sm text-base-content/70">{{ isR2Storage ? "Cloudflare R2 已连接，可直接上传和管理文件。" : "管理上传到 S3 存储的文件资源。" }}</p>
           </div>
           <div class="flex items-center gap-2">
-            <AppButton variant="outline" size="sm" @click="showS3Config = true">
+            <AppButton v-if="!isR2Storage" variant="outline" size="sm" @click="showS3Config = true">
               <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" /><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
               S3 配置
             </AppButton>
@@ -19,7 +19,7 @@
     </section>
 
     <!-- No S3 Config Warning -->
-    <div v-if="!s3Config" class="alert alert-warning">
+    <div v-if="!storageConfigured" class="alert alert-warning">
       <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z" /></svg>
       <div>
         <h3 class="font-bold">尚未配置 S3 存储</h3>
@@ -29,7 +29,7 @@
     </div>
 
     <!-- Upload Area -->
-    <section v-if="s3Config" class="card bg-base-100 shadow-sm">
+    <section v-if="storageConfigured" class="card bg-base-100 shadow-sm">
       <div class="card-body">
         <MediaUploader
           :uploading="uploading"
@@ -43,7 +43,7 @@
     </section>
 
     <!-- Filters & Search -->
-    <section v-if="s3Config" class="card bg-base-100 shadow-sm">
+    <section v-if="storageConfigured" class="card bg-base-100 shadow-sm">
       <div class="card-body py-3">
         <MediaFilters
           :keyword="filterKeyword"
@@ -57,7 +57,7 @@
     </section>
 
     <!-- Media Grid -->
-    <section v-if="s3Config" class="card bg-base-100 shadow-sm">
+    <section v-if="storageConfigured" class="card bg-base-100 shadow-sm">
       <div class="card-body">
         <div v-if="loading" class="flex items-center justify-center py-12">
           <span class="loading loading-spinner loading-lg"></span>
@@ -147,6 +147,8 @@ const initialData = useData<Awaited<Data>>();
 
 // State
 const s3Config = ref(initialData.s3Config);
+const isR2Storage = computed(() => initialData.r2Configured && !s3Config.value);
+const storageConfigured = computed(() => Boolean(s3Config.value) || isR2Storage.value);
 const mediaList = ref<MediaListResult>(initialData.mediaList);
 const loading = ref(false);
 const uploading = ref(false);
@@ -265,7 +267,7 @@ async function convertToWebP(file: File, quality: number = 0.7): Promise<File> {
 }
 
 async function handleUpload(file: File, compress: boolean) {
-  if (!s3Config.value) return;
+  if (!storageConfigured.value) return;
 
   uploading.value = true;
   uploadProgress.value = 0;

@@ -2,6 +2,8 @@ import { getContext } from "telefunc";
 import type { PrismaClient } from "../../generated/prisma/client";
 import { badRequestError, notFoundError } from "../../lib/app-error";
 import { S3Client, createS3ClientFromConfig } from "../../lib/s3/client";
+import { R2Client } from "../../lib/r2/client";
+import { getRequestContext } from "../../lib/request-context";
 import { getAdminContext, logAdminOperation } from "../auth/service";
 import {
   getS3ConfigRecord,
@@ -84,9 +86,11 @@ export async function saveS3Config(input: S3ConfigInput) {
 
 // ─── Get S3 Client from DB ───────────────────────────────
 
-export async function getS3Client(prisma: PrismaClient): Promise<S3Client> {
+export async function getS3Client(prisma: PrismaClient): Promise<S3Client | R2Client> {
   const config = await getS3ConfigRecord(prisma);
   if (!config) {
+    const bucket = getRequestContext()?.mediaBucket;
+    if (bucket) return new R2Client(bucket);
     throw badRequestError("请先配置 S3 存储服务", "S3_CONFIG_MISSING");
   }
   return createS3ClientFromConfig(config);
@@ -96,17 +100,12 @@ export async function testS3Connection(input?: S3ConfigInput) {
   const adminContext = getAdminContext();
   const { prisma } = adminContext;
 
-  let s3Client: S3Client;
+  let s3Client: S3Client | R2Client;
   if (input) {
     // Test with provided config (from form, not yet saved)
     s3Client = createS3ClientFromConfig(input);
   } else {
-    // Test with saved config
-    const config = await getS3ConfigRecord(prisma);
-    if (!config) {
-      throw badRequestError("请先配置 S3 存储服务", "S3_CONFIG_MISSING");
-    }
-    s3Client = createS3ClientFromConfig(config);
+    s3Client = await getS3Client(prisma);
   }
 
   return s3Client.testConnection();

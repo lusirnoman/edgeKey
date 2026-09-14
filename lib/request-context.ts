@@ -5,6 +5,7 @@ export type RequestContext = {
   method?: string;
   path?: string;
   cfRay?: string;
+  mediaBucket?: R2Bucket;
 };
 
 const requestContextStorage = new AsyncLocalStorage<RequestContext>();

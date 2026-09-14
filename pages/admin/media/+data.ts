@@ -1,6 +1,7 @@
 import type { PrismaClient } from "../../../generated/prisma/client";
 import { getS3Config } from "../../../modules/media/service";
 import { listMediaRecords } from "../../../modules/media/repository";
+import { getRequestContext } from "../../../lib/request-context";
 
 export type Data = ReturnType<typeof data>;
 
@@ -9,7 +10,7 @@ export async function data(pageContext: {
   session?: { user?: { role?: string } };
 }) {
   if (pageContext.session?.user?.role !== "admin") {
-    return { s3Config: null, mediaList: { items: [], total: 0, page: 1, pageSize: 24, totalPages: 0 } };
+    return { s3Config: null, r2Configured: false, mediaList: { items: [], total: 0, page: 1, pageSize: 24, totalPages: 0 } };
   }
 
   const [s3Config, mediaList] = await Promise.all([
@@ -19,6 +20,7 @@ export async function data(pageContext: {
 
   return {
     s3Config,
+    r2Configured: Boolean(getRequestContext()?.mediaBucket),
     mediaList,
   };
 }

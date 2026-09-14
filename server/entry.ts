@@ -24,6 +24,7 @@ export function createApp() {
 
   app.use(async (c, next) => {
     const requestContext = createRequestContext(c.req.raw);
+    requestContext.mediaBucket = (c.env as Partial<Env> | undefined)?.MEDIA_BUCKET;
     (c as any).set("requestId", requestContext.requestId);
     (c as any).set("universalContext", {
       requestId: requestContext.requestId,

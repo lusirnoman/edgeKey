@@ -40,7 +40,7 @@ function serializeError(error: Error): SerializedError {
 }
 
 function buildLogEntry(level: LogLevel, input: LogInput, context?: LogContext) {
-  const requestContext = getRequestContext();
+  const { mediaBucket: _mediaBucket, ...requestContext } = getRequestContext() ?? {};
   const entry: Record<string, unknown> = {
     timestamp: new Date().toISOString(),
     level,
